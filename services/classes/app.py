@@ -1,30 +1,90 @@
-from flask import Flask
-from routes import class_routes
-from database import init_db, db  # Import direct de `db`
-from sqlalchemy import text
+from flask import Flask, render_template
+from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import Integer, String, ForeignKey
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-app = Flask(__name__)
-app.config.from_object('config')
+db = SQLAlchemy()
 
-# Initialisation de la base de données
-init_db(app)
+# Define models at module level
+class Professeur(db.Model):
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    nom: Mapped[str] = mapped_column(String(100), nullable=False)
+    cours = relationship("Cours", back_populates="professeur")  # Back-reference
 
-# Enregistrement des routes
-app.register_blueprint(class_routes, url_prefix='/classes')
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'nom': self.nom
+        }
 
-print("Routes enregistrées :")
-for rule in app.url_map.iter_rules():
-    print(rule)
+class Cours(db.Model):
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    titre: Mapped[str] = mapped_column(String(100), nullable=False)
+    professeur_id: Mapped[int] = mapped_column(Integer, ForeignKey('professeur.id'), nullable=False)
+    professeur = relationship("Professeur", back_populates="cours")  # Relationship to Professeur
 
-# Vérification de la connexion à la base de données
-try:
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'titre': self.titre,
+            'professeur_id': self.professeur_id
+        }
+
+class Classe(db.Model):
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    nom: Mapped[str] = mapped_column(String(100), nullable=False)
+    niveau: Mapped[str] = mapped_column(String(50), nullable=False)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'nom': self.nom,
+            'niveau': self.niveau
+        }
+
+class Etudiant(db.Model):
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    nom: Mapped[str] = mapped_column(String(100), nullable=False)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'nom': self.nom
+        }
+
+def create_app():
+    app = Flask(__name__)
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:passer@localhost/gestion_etablissement'
+    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+    db.init_app(app)
+
+    @app.route('/')
+    def index():
+        cours = Cours.query.all()
+        professeurs = Professeur.query.all()
+        return render_template('index.html', cours=cours, professeurs=professeurs)
+
+    # Register Blueprints
+    from services.classes.route_classe import classe_bp
+    from services.classes.route_professeur import prof_bp
+    from services.classes.route_cours import cours_bp
+    from services.classes.route_etudiant import etudiant_bp
+
     with app.app_context():
-        db.session.execute(text('SELECT 1'))
+        db.create_all()
         print("✅ Connexion Flask/PostgreSQL OK !")
+        print("Tables créées ou vérifiées !")
+        app.register_blueprint(classe_bp)
+        app.register_blueprint(prof_bp)
+        app.register_blueprint(cours_bp)
+        app.register_blueprint(etudiant_bp)
+        print("Routes enregistrées :")
+        for rule in app.url_map.iter_rules():
+            print(rule)
 
-except Exception as e:
-    print(f"❌ Erreur de connexion Flask/PostgreSQL : {e}")
+    return app
 
-# Lancement de l'application Flask
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5001)
+    app = create_app()
+    app.run(debug=True, port=5001)

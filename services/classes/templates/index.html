@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Gestion des Cours</title>
+    <style>
+        table { border-collapse: collapse; width: 80%; margin: 20px auto; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        form { margin: 20px auto; width: 80%; }
+        input, select, button { margin: 5px; padding: 5px; }
+    </style>
+</head>
+<body>
+    <h1>Gestion des Cours</h1>
+
+    <!-- Liste des cours -->
+    <table>
+        <tr>
+            <th>ID</th>
+            <th>Titre</th>
+            <th>Professeur</th>
+            <th>Actions</th>
+        </tr>
+        {% for cours in cours %}
+        <tr>
+            <td>{{ cours.id }}</td>
+            <td>{{ cours.titre }}</td>
+            <td>{{ cours.professeur.nom if cours.professeur else 'Aucun professeur' }}</td>
+            <td>
+                <form action="/cours/{{ cours.id }}" method="POST" style="display:inline;">
+                    <input type="hidden" name="_method" value="DELETE">
+                    <button type="submit">Supprimer</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+
+    <!-- Ajouter un cours -->
+    <form action="/cours/" method="POST">
+        <input type="text" name="titre" placeholder="Titre du cours" required>
+        {% if professeurs %}
+        <select name="professeur_id" required>
+            <option value="" disabled selected>Choisir un professeur</option>
+            {% for prof in professeurs %}
+            <option value="{{ prof.id }}">{{ prof.nom }}</option>
+            {% endfor %}
+        </select>
+        {% else %}
+        <td>
+            {% if cours.professeur %}
+            <a href="{{ url_for('professeur.get_professeur', prof_id=cours.professeur.id) }}">{{ cours.professeur.nom }}</a>
+            {% else %}
+            Aucun professeur
+            {% endif %}
+        </td>
+        </select>
+        {% endif %}
+        <button type="submit" {% if not professeurs %}disabled{% endif %}>Ajouter</button>
+    </form>
+</body>
+</html>

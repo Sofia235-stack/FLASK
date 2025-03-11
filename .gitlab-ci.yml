@@ -1,0 +1,92 @@
+stages:
+  - build
+  - test
+  - quality
+  - package
+  - deploy
+
+variables:
+  DOCKER_REGISTRY_DEV: $CI_REGISTRY_IMAGE  # GitLab Registry
+  DOCKER_REGISTRY_PROD: "docker.io/monprojet"  # Docker Hub
+
+# Build : Installation des dépendances
+build_job:
+  stage: build
+  image: python:3.9-slim
+  script:
+    - pip install -r requirements.txt
+  cache:
+    paths:
+      - .cache/pip
+
+# Tests unitaires avec pytest
+unit_tests:
+  stage: test
+  image: python:3.9-slim
+  script:
+    - pip install -r requirements.txt
+    - pytest app/ --verbose
+  dependencies:
+    - build_job
+
+# Qualité avec SonarQube
+quality_check:
+  stage: quality
+  image: sonarsource/sonar-scanner-cli
+  script:
+    - sonar-scanner
+      -Dsonar.projectKey=projetdevops
+      -Dsonar.sources=app/
+      -Dsonar.host.url=http://sonarqube:9000
+  dependencies:
+    - build_job
+
+# Construction et push de l’image Docker (Dev/Staging)
+docker_build_dev:
+  stage: package
+  image: docker:20.10
+  services:
+    - docker:dind
+  script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - docker build -t $DOCKER_REGISTRY_DEV:${CI_COMMIT_SHA} .
+    - docker push $DOCKER_REGISTRY_DEV:${CI_COMMIT_SHA}
+  only:
+    - develop
+
+# Déploiement Dev (Docker)
+deploy_dev:
+  stage: deploy
+  image: docker:20.10
+  services:
+    - docker:dind
+  script:
+    - docker run -d -p 5000:5000 $DOCKER_REGISTRY_DEV:${CI_COMMIT_SHA}
+  only:
+    - develop
+  environment:
+    name: development
+
+# Construction et push pour Prod
+docker_build_prod:
+  stage: package
+  image: docker:20.10
+  services:
+    - docker:dind
+  script:
+    - docker login -u $DOCKERHUB_USER -p $DOCKERHUB_PASS
+    - docker build -t $DOCKER_REGISTRY_PROD:${CI_COMMIT_SHA} .
+    - docker push $DOCKER_REGISTRY_PROD:${CI_COMMIT_SHA}
+  only:
+    - main
+
+# Déploiement Prod (Kubernetes)
+deploy_prod:
+  stage: deploy
+  image: bitnami/kubectl
+  script:
+    - kubectl apply -f k8s/deployment.yaml
+  only:
+    - main
+  environment:
+    name: production

@@ -1,11 +1,46 @@
-@class_routes.route('/', methods=['POST'])
-def add_class():
-    data = request.json
-    if 'name' not in data:
-        return jsonify({'error': 'Le nom de la classe est requis'}), 400
+# services/classes/models.py
+from services.classes.app import db
 
-    new_class = Classe(name=data['name'])
-    db.session.add(new_class)
-    db.session.commit()
+class Cours(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    titre = db.Column(db.String(100), nullable=False)
+    professeur_id = db.Column(db.Integer, db.ForeignKey('professeur.id'), nullable=False)
 
-    return jsonify(new_class.to_dict()), 201
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'titre': self.titre,
+            'professeur_id': self.professeur_id
+        }
+
+class Professeur(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    nom = db.Column(db.String(100), nullable=False)
+
+    def to_dict(self):  # Added
+        return {
+            'id': self.id,
+            'nom': self.nom
+        }
+
+class Classe(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    nom = db.Column(db.String(100), nullable=False)
+    niveau = db.Column(db.String(50), nullable=False)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'nom': self.nom,
+            'niveau': self.niveau
+        }
+
+class Etudiant(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    nom = db.Column(db.String(100), nullable=False)
+
+    def to_dict(self):  # Added
+        return {
+            'id': self.id,
+            'nom': self.nom
+        }

@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Gestion des Professeurs</title>
+    <style>
+        table { border-collapse: collapse; width: 80%; margin: 20px auto; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        form { margin: 20px auto; width: 80%; }
+        input, button { margin: 5px; padding: 5px; }
+    </style>
+</head>
+<body>
+    <h1>Gestion des Professeurs</h1>
+    <table>
+        <tr>
+            <th>ID</th>
+            <th>Nom</th>
+        </tr>
+        {% for prof in professeurs %}
+        <tr>
+            <td>{{ prof.id }}</td>
+            <td>{{ prof.nom }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+    <form action="/professeurs/" method="POST">
+        <input type="text" name="nom" placeholder="Nom du professeur" required>
+        <button type="submit">Ajouter</button>
+    </form>
+    <p><a href="/">Retour aux cours</a></p>
+</body>
+</html>

@@ -1,12 +1,9 @@
-# database.py
 from flask_sqlalchemy import SQLAlchemy
 
 db = SQLAlchemy()
 
 def init_db(app):
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:passer@localhost/gestion_etablisseement'
-    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-    db.init_app(app)
-
+    """Initialise la base de données avec Flask"""
+    db.init_app(app)  # Associe SQLAlchemy avec l'application Flask
     with app.app_context():
-        db.create_all()
+        db.create_all()  # Crée les tables si elles n'existent pas
