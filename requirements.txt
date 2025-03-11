@@ -1,0 +1,6 @@
+flask==2.3.3
+psycopg2-binary==2.9.6  # Pour la connexion à PostgreSQL
+sqlalchemy==2.0.20      # ORM pour gérer la base de données
+pytest==7.4.0           # Pour les tests unitaires
+prometheus-flask-exporter==0.20.3  # Optionnel, pour le monitoring des métriques
+gunicorn==21.2.0        # Optionnel, serveur WSGI recommandé pour la production
