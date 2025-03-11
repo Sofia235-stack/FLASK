@@ -1,19 +1,18 @@
-# Utiliser une image Python légère comme base
+# Utiliser une image de base Python
 FROM python:3.9-slim
 
-# Définir le répertoire de travail dans le conteneur
+# Définir le répertoire de travail
 WORKDIR /app
 
-# Copier requirements.txt et installer les dépendances
+# Copier les dépendances et les installer (éviter le cache pour s'assurer de l'installation)
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copier les dossiers et fichiers nécessaires
-COPY app/ ./app/
-COPY templates/ ./templates/
+# Copier le reste du code
+COPY . .
 
-# Exposer le port 5000 (port par défaut de Flask)
+# Exposer le port
 EXPOSE 5000
 
-# Commande pour lancer l'application Flask
-CMD ["python", "app/app.py"]
+# Commande pour lancer l'application
+CMD ["python", "-m", "services.classes.app"]

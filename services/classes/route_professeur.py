@@ -1,53 +1,54 @@
-from flask import Blueprint, jsonify, request, render_template, redirect, url_for
-from services.classes.app import db, Professeur
+# services/classes/route_professeurs.py
+from flask import Blueprint, render_template, request, redirect, url_for, flash
+from services.classes.models import Professeur
+from services.classes.app import db
 
-prof_bp = Blueprint('professeur', __name__)
+professeur_bp = Blueprint('professeur', __name__)
 
-@prof_bp.route('/professeurs/', methods=['GET'])
-def get_professeurs():
+# READ (Liste des professeurs)
+@professeur_bp.route('/professeurs')
+def list_professeurs():
     professeurs = Professeur.query.all()
-    if request.headers.get('Accept') == 'application/json':
-        return jsonify([prof.to_dict() for prof in professeurs]), 200
-    return render_template('professeurs.html', professeurs=professeurs)
+    return render_template('professeurs/list.html', professeurs=professeurs)
 
-@prof_bp.route('/professeurs/', methods=['POST'])
+# CREATE (Ajouter un professeur)
+@professeur_bp.route('/professeurs/add', methods=['GET', 'POST'])
 def add_professeur():
-    data = request.form if request.form else request.json
-    if 'nom' not in data:
-        return jsonify({'error': 'Le champ nom est obligatoire'}), 400
+    if request.method == 'POST':
+        nom = request.form.get('nom')
+        if not nom:
+            flash('Le nom est requis !', 'error')
+            return redirect(url_for('professeur.add_professeur'))
+        professeur = Professeur(nom=nom)
+        db.session.add(professeur)
+        db.session.commit()
+        flash('Professeur ajouté avec succès !', 'success')
+        return redirect(url_for('professeur.list_professeurs'))
+    return render_template('professeurs/add.html')
 
-    new_prof = Professeur(nom=data['nom'])
-    db.session.add(new_prof)
+# UPDATE (Modifier un professeur)
+@professeur_bp.route('/professeurs/edit/<int:id>', methods=['GET', 'POST'])
+def edit_professeur(id):
+    professeur = Professeur.query.get_or_404(id)
+    if request.method == 'POST':
+        nom = request.form.get('nom')
+        if not nom:
+            flash('Le nom est requis !', 'error')
+            return redirect(url_for('professeur.edit_professeur', id=id))
+        professeur.nom = nom
+        db.session.commit()
+        flash('Professeur modifié avec succès !', 'success')
+        return redirect(url_for('professeur.list_professeurs'))
+    return render_template('professeurs/edit.html', professeur=professeur)
+
+# DELETE (Supprimer un professeur)
+@professeur_bp.route('/professeurs/delete/<int:id>', methods=['POST'])
+def delete_professeur(id):
+    professeur = Professeur.query.get_or_404(id)
+    db.session.delete(professeur)
     db.session.commit()
-    if request.headers.get('Accept') == 'application/json':
-        return jsonify(new_prof.to_dict()), 201
-    return redirect(url_for('professeur.get_professeurs'))
+    flash('Professeur supprimé avec succès !', 'success')
+    return redirect(url_for('professeur.list_professeurs'))
 
-@prof_bp.route('/professeurs/<int:prof_id>', methods=['PUT'])
-@prof_bp.route('/professeurs/<int:prof_id>', methods=['GET'])
-def get_professeur(prof_id):
-    prof = Professeur.query.get_or_404(prof_id)
-    if request.headers.get('Accept') == 'application/json':
-        return jsonify(prof.to_dict()), 200
-    return render_template('professeur_detail.html', prof=prof)
-def update_professeur(prof_id):
-    prof = Professeur.query.get(prof_id)
-    if not prof:
-        return jsonify({'error': 'Professeur non trouvé'}), 404
-
-    data = request.json
-    if 'nom' in data:
-        prof.nom = data['nom']
-
-    db.session.commit()
-    return jsonify({'message': 'Professeur mis à jour avec succès', 'professeur': prof.to_dict()}), 200
-
-@prof_bp.route('/professeurs/<int:prof_id>', methods=['DELETE'])
-def delete_professeur(prof_id):
-    prof = Professeur.query.get(prof_id)
-    if not prof:
-        return jsonify({'error': 'Professeur non trouvé'}), 404
-
-    db.session.delete(prof)
-    db.session.commit()
-    return jsonify({'message': 'Professeur supprimé avec succès'}), 200
+def init_routes(app):
+    app.register_blueprint(professeur_bp)
