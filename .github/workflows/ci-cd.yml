@@ -1,0 +1,142 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+      - develop
+
+env:
+  DOCKER_REGISTRY_DEV: ghcr.io/${{ github.repository }}  # GitHub Container Registry
+  DOCKER_REGISTRY_PROD: docker.io/monprojet  # Docker Hub
+
+jobs:
+  
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.9"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+  
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.9"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run tests
+        run: pytest app/ --verbose
+
+  quality:
+    name: Code Quality Check
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: SonarQube Scan
+        uses: sonarsource/sonarqube-scan-action@master
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          projectBaseDir: app/
+          args: >
+            -Dsonar.projectKey=projetdevops
+            -Dsonar.sources=app/
+            -Dsonar.host.url=http://sonarqube:9000
+
+  docker_build_dev:
+    name: Build & Push Docker (Dev)
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.ref == 'refs/heads/develop'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Docker image
+        run: |
+          docker build -t $DOCKER_REGISTRY_DEV:${{ github.sha }} .
+          docker push $DOCKER_REGISTRY_DEV:${{ github.sha }}
+
+  deploy_dev:
+    name: Deploy to Dev
+    runs-on: ubuntu-latest
+    needs: docker_build_dev
+    if: github.ref == 'refs/heads/develop'
+    steps:
+      - name: Run Docker Container
+        run: |
+          docker run -d -p 5000:5000 $DOCKER_REGISTRY_DEV:${{ github.sha }}
+
+  docker_build_prod:
+    name: Build & Push Docker (Prod)
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USER }}
+          password: ${{ secrets.DOCKERHUB_PASS }}
+
+      - name: Build and push Docker image
+        run: |
+          docker build -t $DOCKER_REGISTRY_PROD:${{ github.sha }} .
+          docker push $DOCKER_REGISTRY_PROD:${{ github.sha }}
+
+  deploy_prod:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: docker_build_prod
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: "latest"
+
+      - name: Deploy to Kubernetes
+        run: |
+          kubectl apply -f k8s/deployment.yaml
