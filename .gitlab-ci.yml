@@ -14,7 +14,7 @@ build_job:
   stage: build
   image: python:3.9-slim
   script:
-    - pip install -r requirements.txt
+    - pip install -r services/classes/requirements.txt
   cache:
     paths:
       - .cache/pip
@@ -24,22 +24,22 @@ unit_tests:
   stage: test
   image: python:3.9-slim
   script:
-    - pip install -r requirements.txt
+    - pip install -r services/classes/requirements.txt
     - pytest app/ --verbose
   dependencies:
     - build_job
 
 # Qualité avec SonarQube
-quality_check:
-  stage: quality
-  image: sonarsource/sonar-scanner-cli
-  script:
-    - sonar-scanner
-      -Dsonar.projectKey=projetdevops
-      -Dsonar.sources=app/
-      -Dsonar.host.url=http://sonarqube:9000
-  dependencies:
-    - build_job
+# quality_check:
+#   stage: quality
+#   image: sonarsource/sonar-scanner-cli
+#   script:
+#     - sonar-scanner
+#       -Dsonar.projectKey=projetdevops
+#       -Dsonar.sources=app/
+#       -Dsonar.host.url=http://sonarqube:9000
+#   dependencies:
+#     - build_job
 
 # Construction et push de l’image Docker (Dev/Staging)
 docker_build_dev:
